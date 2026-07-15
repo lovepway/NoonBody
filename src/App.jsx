@@ -367,19 +367,25 @@ function Compare({ records, uploadedImgs, setRecords, setUploadedImgs, showToast
 }
 type은 반드시 "up"(증가/발달), "down"(감소/가늘어짐), "same"(유지) 중 하나.`;
 
-      let content;
+const parts = [];
       if (b64A && b64B) {
-        content = [
-          { type: "image", source: { type: "base64", media_type: "image/jpeg", data: b64A } },
-          { type: "text", text: `이전 사진 (${recA.label}${recA.weight ? ", " + recA.weight + "kg" : ""})` },
-          { type: "image", source: { type: "base64", media_type: "image/jpeg", data: b64B } },
-          { type: "text", text: `비교 사진 (${recB.label}${recB.weight ? ", " + recB.weight + "kg" : ""})\n\n두 사진을 비교해서 신체 부위별 변화를 분석해주세요.` },
-        ];
+        parts.push({ inlineData: { mimeType: "image/jpeg", data: b64A } });
+        parts.push({ text: `이전 사진 (${recA.label}${recA.weight ? ", " + recA.weight + "kg" : ""})` });
+        parts.push({ inlineData: { mimeType: "image/jpeg", data: b64B } });
+        parts.push({ text: `비교 사진 (${recB.label}${recB.weight ? ", " + recB.weight + "kg" : ""})\n\n두 사진을 비교해서 신체 부위별 변화를 분석해주세요.` });
       } else {
-        content = `이전 시점(${recA.label}${recA.weight ? ", " + recA.weight + "kg" : ""})과 비교 시점(${recB.label}${recB.weight ? ", " + recB.weight + "kg" : ""})의 눈바디를 비교 분석해주세요. 사진이 없으므로 체중 변화와 일반적인 변화 패턴을 기반으로 분석해주세요.`;
+        parts.push({ text: `이전 시점(${recA.label}${recA.weight ? ", " + recA.weight + "kg" : ""})과 비교 시점(${recB.label}${recB.weight ? ", " + recB.weight + "kg" : ""})의 눈바디를 비교 분석해주세요. 사진이 없으므로 체중 변화와 일반적인 변화 패턴을 기반으로 분석해주세요.` });
       }
+      parts.push({ text: system });
 
-      const raw = await callClaude([{ role: "user", content }], system);
+      const r2 = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ parts })
+      });
+      const d2 = await r2.json();
+      if (d2.error) throw new Error(d2.error.message || JSON.stringify(d2.error));
+      const raw = d2.text || "결과를 가져오지 못했어요.";
       const clean = raw.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(clean);
       setResult(parsed);
