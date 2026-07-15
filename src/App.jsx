@@ -57,21 +57,28 @@ function resizeImage(dataUrl, maxSize = 1024) {
   });
 }
 
-async function callClaude(messages, system) {
+async function callClaude(userMsg, b64) {
+  const parts = [];
+  if (b64) {
+    parts.push({ inlineData: { mimeType: "image/jpeg", data: b64 } });
+  }
+  const systemPrompt = `당신은 눈바디 헬스 앱의 AI 건강 코치입니다.
+사용자: 남성, 184cm, 매일 오전 5시 고강도 웨이트+5~7km 러닝.
+목표: 체지방 감량 + 근육 유지/증가.
+규칙:
+- 따뜻하고 감성적인 존댓말, 이모지 적절히 사용
+- 사진 첨부 시 체형 직접 분석 (체지방 분포, 근육 발달, 개선 포인트 구체적으로)
+- 운동/식단 추천 포함, 5~8문장, 응원으로 마무리`;
+  parts.push({ text: systemPrompt + "\n\n" + userMsg });
+
   const r = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1500,
-      system,
-      messages,
-    })
+    body: JSON.stringify({ parts })
   });
   const d = await r.json();
   if (d.error) throw new Error(d.error.message || JSON.stringify(d.error));
-  if (!d.content || !Array.isArray(d.content)) throw new Error("응답 오류");
-  return d.content.map(b => b.text || "").join("") || "결과를 가져오지 못했어요.";
+  return d.text || "결과를 가져오지 못했어요.";
 }
 
 // ── 신체 실루엣 SVG ──
